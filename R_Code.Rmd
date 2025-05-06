@@ -132,6 +132,9 @@ multcompLetters(climate_fungi$Adjusted, compare="<", threshold=0.05, Letters=let
 RF_bact <- read_excel("data.xlsx")
 
 # Bacteria
+
+RF_bacteria <- read_excel("data.xlsx")
+
 bacteria_rf1<- rfPermute(bac_R_B ~ ., data=RF_bact, ntree=500, nrep=1000)
 bacteria_rf2<- rfPermute(bac_R_B ~ ., data=RF_bact, ntree=500, nrep=1000)
 bacteria_rf3<- rfPermute(bac_R_B ~ ., data=RF_bact, ntree=500, nrep=1000)
