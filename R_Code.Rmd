@@ -1,0 +1,293 @@
+
+###R code for microbial R:B ratios across Europe 
+
+library (ggplot2)
+library(ggpubr)
+library(ggplot2)
+library(vegan)
+library(coin)
+library(rcompanion)
+library(multcompView)
+library(randomForest)
+library(rfPermute)
+library(piecewiseSEM)
+library(nlme)
+library(lme4)
+library(QuantPsyc)
+library(Hmisc)
+library(corrplot)
+library (RColorBrewer)
+
+## Fig. 1
+
+regression <- read_excel("data.xlsx")
+
+regression$LU <- factor(regression$LU, level= c("Forest", "Grassland", "Cropland"))
+regression$Climate <- factor(regression$Climate, level= c("Cold", "Temperate", "Arid"))
+regression$Fraction = factor (regression$Fraction, ordered = FALSE, levels = unique (regression$Fraction))
+
+A <- ggplot(regression, aes(x=Biomass, y=Richness)) + geom_point(size=1.2, aes(shape=LU, color=Climate))+geom_smooth(method=lm,  formula = y ~ x + I(x^2), color = "black") + theme_bw() + theme(axis.text=element_text(size=8), axis.title.x = element_blank()) + facet_wrap (~ Fraction, scales = "free") + scale_x_continuous(expand= c(0,0)) + scale_colour_manual(values=c("#006BBB", "#F9AC67", "#EE6A59"))
+
+B <- ggplot(regression, aes(x=Biomass, y=Richness)) + geom_point(size=1.2, aes(shape=Climate, color=LU)) + geom_smooth(method=lm,  formula = y ~ x + I(x^2), aes (color=LU, fill=LU)) + theme_bw() + theme(axis.text=element_text(size=8), axis.title.x = element_blank()) + facet_wrap (~ Fraction, scales = "free") + scale_colour_manual(values=c("#2CA18C", "#FB7E96", "#F7DC68")) + scale_fill_manual(values=c("#2CA18C", "#FB7E96", "#F7DC68")) + scale_x_continuous(expand= c(0,0))
+
+C <- ggplot(regression, aes(x=Biomass, y=Richness)) + geom_point(size=1.2, aes(shape=LU, color=Climate)) + geom_smooth(method=lm,  formula = y ~ x + I(x^2), aes (color=Climate, fill=Climate)) + theme_bw() + theme(axis.text=element_text(size=8), axis.title.x = element_blank()) + facet_wrap (~ Fraction, scales = "free") + scale_colour_manual(values=c("#006BBB", "#F9AC67", "#EE6A59")) + scale_fill_manual(values=c("#006BBB", "#F9AC67", "#EE6A59")) + scale_x_continuous(expand= c(0,0))
+
+ggarrange(A, B, C, nrow=3)
+
+
+# Statistics for Fig. 1
+# All samples
+Bacteria <- lm(Richness ~ Biomass + I(Biomass^2), data = bacteria)
+summary(Bacteria)
+
+Fungi <- lm(Richness ~ Biomass + I(Biomass^2), data = fungi)
+summary(Fungi)
+
+
+# Bacteria vs land use and climate
+Bacteria_forest <- lm(Richness ~ Biomass + I(Biomass^2), data = fung_forest)
+summary(Bacteria_forest)
+
+Bacteria_grassland <- lm(Richness ~ Biomass + I(Biomass^2), data = fung_grassland)
+summary(Bacteria_grassland)
+
+Bacteria_cropland <- lm(Richness ~ Biomass + I(Biomass^2), data = fung_cropland)
+summary(Bacteria_cropland)
+
+Bacteria_cold <- lm(Richness ~ Biomass + I(Biomass^2), data = fung_cold)
+summary(Bacteria_cold)
+
+Bacteria_temperate <- lm(Richness ~ Biomass + I(Biomass^2), data = fung_temperate)
+summary(Bacteria_temperate)
+
+
+# Fungi vs land use and climate
+Fungi_forest <- lm(Richness ~ Biomass + I(Biomass^2), data = fung_forest)
+summary(Fungi_forest)
+
+Fungi_grassland <- lm(Richness ~ Biomass + I(Biomass^2), data = fung_grassland)
+summary(Fungi_grassland)
+
+Fungi_cropland <- lm(Richness ~ Biomass + I(Biomass^2), data = fung_cropland)
+summary(Fungi_cropland)
+
+Fungi_cold <- lm(Richness ~ Biomass + I(Biomass^2), data = fung_cold)
+summary(Fungi_cold)
+
+Fungi_temperate <- lm(Richness ~ Biomass + I(Biomass^2), data = fung_temperate)
+summary(Fungi_temperate)
+
+Fungi_arid <- lm(Richness ~ Biomass + I(Biomass^2), data = fung_arid)
+summary(Fungi_arid)
+
+
+## Fig. 2
+
+factors <- read_excel("data.xlsx")
+
+factors$Fraction <- factor(factors$Fraction, level= c("Bacteria", "Fungi"))
+factors$Group <- factor(factors$Group, level= c("Land_use", "Climate"))
+factors$Ordering <- factor(factors$Ordering, level= c("Forest", "Grassland", "Cropland", "Cold", "Temperate", "Arid"))
+
+
+A <- ggplot(grafica_factors, aes(x=Group, y=R_B, fill=Ordering)) + geom_boxplot(lwd=0.2, outlier.size=0.1) + facet_wrap(~Fraction, scales="free_y") + theme_bw() + scale_fill_manual(values=c("#2CA18C", "#FB7E96", "#F7DC68", "#006BBB", "#F9AC67", "#EE6A59"))
+
+B <- ggplot(grafica2, aes(x=LU, y=R_B, fill=Climate)) + geom_boxplot(lwd=0.2, outlier.size=0.1) + facet_wrap(~Fraction, scales="free_y") + theme_bw() + scale_fill_manual(values=c("#006BBB", "#F9AC67", "#EE6A59"))
+
+
+ggarrange(A, B, nrow=2)
+
+# Statistics for Fig. 2
+# 2-way PERMANOVA 
+
+#Bacteria
+permanovabac <- adonis(bac_R_B~LU*Climate, data=factors_bacteria, distance="euclidean", perm=9999)
+print(permanovabac$aov.tab)
+
+# Posthoc 1
+land_use_bacteria = pairwisePermutationMatrix(bac_R_B~LU, data = factors_bacteria, method="fdr")
+multcompLetters(land_use_bacteria$Adjusted, compare="<", threshold=0.05, Letters=letters, reversed = FALSE)
+
+# Posthoc 2
+climate_bacteria = pairwisePermutationMatrix(bac_R_B~Climate, data = factors_bacteria, method="fdr")
+multcompLetters(climate_bacteria$Adjusted, compare="<", threshold=0.05, Letters=letters, reversed = FALSE)
+
+
+#Fungi
+# 2-way PERMANOVA 
+permanovafung <- adonis(fung_R_B~LU*Climate, data=factors_fungi, distance="euclidean", perm=9999)
+print(permanovafung$aov.tab)
+
+# Posthoc 1
+land_use_fungi = pairwisePermutationMatrix(fung_R_B~LU, data = factors_fungi, method="fdr")
+multcompLetters(land_use_fungi$Adjusted, compare="<", threshold=0.05, Letters=letters, reversed = FALSE)
+
+# Posthoc 2
+climate_fungi = pairwisePermutationMatrix(fung_R_B~Climate, data = factors_fungi, method="fdr")
+multcompLetters(climate_fungi$Adjusted, compare="<", threshold=0.05, Letters=letters, reversed = FALSE)
+
+
+## Fig. 3. Random Forest 
+
+RF_bact <- read_excel("data.xlsx")
+
+# Bacteria
+bacteria_rf1<- rfPermute(bac_R_B ~ ., data=RF_bact, ntree=500, nrep=1000)
+bacteria_rf2<- rfPermute(bac_R_B ~ ., data=RF_bact, ntree=500, nrep=1000)
+bacteria_rf3<- rfPermute(bac_R_B ~ ., data=RF_bact, ntree=500, nrep=1000)
+bacteria_rf4<- rfPermute(bac_R_B ~ ., data=RF_bact, ntree=500, nrep=1000)
+bacteria_rf5<- rfPermute(bac_R_B ~ ., data=RF_bact, ntree=500, nrep=1000)
+bacteria_rf_all <- combineRP(bacteria_rf1, bacteria_rf2, bacteria_rf3, bacteria_rf4, bacteria_rf5)
+
+importance(bacteria_rf_all, scale=TRUE)
+randomForest(bac_R_B ~ ., type=regression, data=RF_bact, ntree=500, nrep=1000)
+
+# Fungi
+
+RF_fungi <- read_excel("data.xlsx")
+
+fungi_rf1 <- rfPermute(fung_R_B ~ ., data=RF_fungi, ntree=500, nrep=1000)
+fungi_rf2 <- rfPermute(fung_R_B ~ ., data=RF_fungi, ntree=500, nrep=1000)
+fungi_rf3 <- rfPermute(fung_R_B ~ ., data=RF_fungi, ntree=500, nrep=1000)
+fungi_rf4 <- rfPermute(fung_R_B ~ ., data=RF_fungi, ntree=500, nrep=1000)
+fungi_rf5 <- rfPermute(fung_R_B ~ ., data=RF_fungi, ntree=500, nrep=1000)
+fungi_rf_all <- combineRP(fungi_rf1, fungi_rf2, fungi_rf3, fungi_rf4, fungi_rf5)
+
+importance(fungi_rf_all, scale=TRUE)
+randomForest(fung_R_B ~ ., type=regression, data=RF_fungi, ntree=500, nrep=1000)
+
+# Figure
+RF$Predictor = factor (RF$Predictor, ordered = FALSE, levels = unique (RF$Predictor))
+
+RF$Fraction = factor (RF$Fraction, ordered = FALSE, levels = unique (RF$Fraction))
+
+ggplot(RF, aes(x=Predictor, y=MSE, fill=Category)) +  geom_col() + theme_bw() + coord_flip() + facet_wrap(~Fraction, scales="free_x") + theme (legend.key.size = unit(0.3, 'cm'), legend.title = element_text(size=8), legend.text = element_text(size=8), axis.text = element_text(size = 8), axis.title=element_text(size=8), axis.title.x = element_blank(), legend.position = "bottom") + scale_x_discrete(limits = rev) + scale_y_continuous(expand = c(0,0), limits = c(-0.1, 25)) + scale_fill_manual(values=c("#ECE6CD", "#3A3F58", "#FDBB75"))
+
+
+
+## Fig. 4 
+#Bacteria
+reg_bac <- read_excel("data.xlsx")
+
+reg_bac$Climate <- factor(reg_bac$Climate, level = c("Cold", "Temperate", "Arid"))
+reg_bac$LU <- factor(reg_bac$LU, level= c("Forest", "Grassland", "Cropland"))
+reg_bac$Nutrient = factor(reg_bac$Nutrient, ordered = FALSE, levels = unique (grafica_bac$Nutrient)) 
+
+A <- ggplot(reg_bac, aes(x=Data, y=R_B)) + geom_point(size=1, aes(shape=LU, color=Climate))+geom_smooth(method=lm, formula = y ~ x + I(x^2), color = "black") + theme_bw() + theme(legend.position="none", axis.text=element_text(size=8)) + scale_x_continuous(expand= c(0,0)) + facet_grid(Fraction ~ Nutrient , scales = "free") + scale_colour_manual(values=c("#006BBB", "#F9AC67", "#EE6A59")) + scale_y_continuous(expand = c(0, 0), limits = c(0.2, 7.1))
+ 
+#Fungi
+reg_fung <- read_excel("data.xlsx")
+
+reg_fung$Climate <- factor(reg_fung$Climate, level = c("Cold", "Temperate", "Arid"))
+reg_fung$LU <- factor(reg_fung$LU, level= c("Forest", "Grassland", "Cropland"))
+reg_fung$Nutrient = factor(reg_fung$Nutrient, ordered = FALSE, levels = unique (grafica_fungi$Nutrient)) 
+
+B <- ggplot(reg_fung, aes(x=Data, y=fung_R_B)) + geom_point(size=1, aes(shape=LU, color=Climate))+geom_smooth(method=lm, formula = y ~ x + I(x^2), color = "black") + theme_bw() + theme(legend.position="none", axis.text=element_text(size=8)) + scale_x_continuous(expand= c(0,0)) + facet_grid(Fraction ~ Nutrient , scales = "free") + scale_colour_manual(values=c("#006BBB", "#F9AC67", "#EE6A59")) + scale_y_continuous(expand = c(0, 0), limits = c(0.0, 10.2))
+
+ggarrange(A, B, nrow=2)
+
+
+#Statistics for Fig. 4.
+#Bacteria
+BactvsN <- lm(R_B ~ N + I(N^2), data = reg_bac)
+summary(BactvsN)
+
+BactvsSOC <- lm(R_B ~ SOC + I(SOC^2), data = reg_bac)
+summary(BactvsSOC)
+
+BactvsClay <- lm(R_B ~ Clay + I(Clay^2), data = reg_bac)
+summary(BactvsClay)
+
+#Fungi 
+FungvsSOC <- lm(fung_R_B ~ SOC + I(SOC^2), data = reg_fung)
+summary(FungvsSOC)
+
+FungvsSilt <- lm(fung_R_B ~ Silt + I(Silt^2), data = reg_fung)
+summary(FungvsSilt)
+
+FungvsBD <- lm(fung_R_B ~ BD, data = reg_fung)
+summary(FungvsBD)
+
+FungvsMAP <- lm(fung_R_B ~ MAP, data = reg_fung)
+summary(FungvsMAP)
+
+FungvsSand <- lm(fung_R_B ~ Sand, data = reg_fung)
+summary(FungvsSand)
+
+##Fig. 5. SEM 
+#Bacteria
+
+SEM_bacteria <- read_excel("data.xlsx")
+
+model.bacteria <- psem(
+lm(logR_B ~ logBD + logpH + logN + logP + logK + logNPP + LU2 + logSand + logAI, data=SEM_bacteria),
+lm(logBD ~ logNPP + LU2 + logAI + logSand, data=SEM_bacteria), 
+lm(logpH ~ logNPP + LU2 + logAI + logSand, data=SEM_bacteria),
+lm(logN ~ logNPP + LU2 + logAI + logSand, data=SEM_bacteria),
+lm(logP ~ logNPP + LU2 + logAI + logSand, data=SEM_bacteria),
+lm(logK ~ logNPP + LU2 + logAI + logSand, data=SEM_bacteria),
+lm(logNPP ~ LU2 + logAI + logSand, data=SEM_bacteria),
+lm(logAI~ LU2, data=SEM_bacteria),
+logBD %~~% logpH,
+logBD %~~% logN,
+logBD %~~% logP,
+logBD %~~% logK,
+logpH %~~% logN,
+logpH %~~% logP,
+logpH %~~% logK,
+logN %~~% logP,
+logN %~~% logK,
+logP %~~% logK
+)
+
+summary(model.bacteria)
+AIC(model.bacteria, AIC.type="dsep", aicc=FALSE)
+
+
+#Fungi
+
+SEM_fungi <- read_excel("data.xlsx")
+
+model.fungi <- psem(
+lm(logR_B ~ logBD + logpH + logSOC + logP + logK + logNPP + LU2 + logSand + logAI, data=SEM_fungi),
+lm(logBD ~ logNPP + LU2 + logAI + logSand, data=SEM_fungi), 
+lm(logpH ~ logNPP + LU2 + logAI + logSand, data=SEM_fungi),
+lm(logSOC ~ logNPP + LU2 + logAI + logSand, data=SEM_fungi),
+lm(logP ~ logNPP + LU2 + logAI + logSand, data=SEM_fungi),
+lm(logK ~ logNPP + LU2 + logAI + logSand, data=SEM_fungi),
+lm(logNPP ~ LU2 + logAI + logSand, data=SEM_fungi),
+lm(logAI~ LU2, data=SEM_fungi),
+logBD %~~% logpH,
+logBD %~~% logSOC,
+logBD %~~% logP,
+logBD %~~% logK,
+logpH %~~% logSOC,
+logpH %~~% logP,
+logpH %~~% logK,
+logSOC %~~% logP,
+logSOC %~~% logK,
+logP %~~% logK
+)
+
+summary(model.fungi)
+AIC(model.fungi, AIC.type="dsep", aicc=FALSE)
+
+
+##Fig. S2 
+bacteria <- read_excel("data.xlsx")
+res2 <- rcorr(as.matrix(bacteria), type = c ("spearman"))
+res2$r
+res2$P
+corrplot(res2$r, method = "color", p.mat = res2$P, sig.level = 0.05, insig = "blank", addCoef.col = "black", tl.col = "black", number.cex=0.9, tl.cex = 0.9, col = brewer.pal(n = 8, name = "BrBG"), type = "lower")
+
+
+##Fig. S3
+fungi <- read_excel("data.xlsx")
+res2 <- rcorr(as.matrix(fungi), type = c ("spearman"))
+res2$r
+res2$P
+corrplot(res2$r, method = "color", p.mat = res2$P, sig.level = 0.05, insig = "blank", addCoef.col = "black", tl.col = "black", number.cex=0.9, tl.cex = 0.9, col = brewer.pal(n = 8, name = "BrBG"), type = "lower")
+
+
+
+
